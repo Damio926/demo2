@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:contest="http://www.springframework.org/schema/context"
+       xmlns:aop="http://www.springframework.org/schema/aop"
+       xmlns:tx="http://www.springframework.org/schema/tx"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.3.xsd
+		http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-4.3.xsd
+		http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-4.3.xsd
+http://www.springframework.org/schema/aop http://www.springframework.org/schema/tx/spring-aop-4.3.xsd">
+
+<!--配置数据源-->
+    <bean id="dataSource" class="com.alibaba.druid.pool.DruidDataSource" init-method="init" destroy-method="close">
+        <property name="driverClassName" value="com.mysql.jdbc.Driver"/>
+        <property name="username" value="root"/>
+        <property name="password" value="123456"/>
+        <property name="url" value="jdbc:mysql://localhost:3307/test?useUnicode=true&amp;characterEncoding=utf-8"/>
+        <!--       初始化连接-->
+        <property name="initialSize" value="5"/>
+        <!--       最小空闲链接条数-->
+        <property name="minIdle" value="10"/>
+        <!--       最大活动链接条数-->
+        <property name="maxActive" value="20"/>
+        <!--        链接超时  单位（毫秒）-->
+        <property name="maxWait" value="15000"/>
+      </bean>
+<!--    <contest:annotation-config></contest:annotation-config>-->
+<!--    通过Mybatis -plugin配置sqlSessionFactary-->
+    <bean id="sqlSessionFactary" class="com.baomidou.mybatisplus.extension.spring.MybatisSqlSessionFactoryBean">
+        <property name="dataSource" ref="dataSource"/>
+<!--        配置实体类扫描的包-->
+        <property name="typeAliasesPackage" value="com.lazy.ssm.entity"/>
+<!--        配置SQL Mapper XML文件-->
+        <property name="mapperLocations">
+            <value>classpath:mapper/*.xml</value>
+        </property>
+    </bean>
+<!--    配置Mapper接口-->
+    <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+        <property name="basePackage" value="com.lazy.ssm.mapper"/>
+        <property name="sqlSessionFactoryBeanName" value="sqlSessionFactary"/>
+    </bean>
+<!--    配置spring事务管理器-->
+    <bean id="transactionMapper" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+        <property name="dataSource" ref="dataSource"/>
+    </bean>
+<!--    开启spring注解试事务-->
+    <tx:annotation-driven transaction-manager="transactionMapper"></tx:annotation-driven>
+<!--    开启spring注解-->
+    <contest:annotation-config/>
+    <contest:component-scan base-package="com.lazy.ssm"/>
+    <aop:aspectj-autoproxy proxy-target-class="true"></aop:aspectj-autoproxy>
+<!--   //  --><!--   //  -->
+<!--    配置切面对象-->
+    <bean id="serviceAspect" class="com.lazy.ssm.aspect.ServiceAspect"/>
+<!--  spring AOP的配置-->
+<!--  config  （配置 配置文件 布局）-->
+<!--  pointcut （声明一个切入点） -->
+<!--    execution( * com.lazy.sm.service.*.*(..))  正则表达式写法-->
+    <aop:config>
+        <aop:aspect ref="serviceAspect">
+            <!--配置切点(条件) 监控什么样的方法（包） pointcut (id自定义)-->
+            <aop:pointcut id="servicePointCut" expression="execution( * com.lazy.ssm.service.*.*(..)) and not execution( * com.lazy.ssm.service.impl.ISysServiceImpl.*(..))"/>
+            <!--配置通知-->
+            <!--执行方法成功后调用 配置（匹配）成功的方法-->
+            <aop:after-returning method="afterReturn" pointcut-ref="servicePointCut"/>
+            <!--执行方法发生异常时调用 说明：throwing="e" 用来设置afterThrows方法异常参数,e为自定义（形参）-->
+            <aop:after-throwing method="afterThrows" pointcut-ref="servicePointCut" throwing="e"/>
+        </aop:aspect>
+    </aop:config>
+
+</beans>
